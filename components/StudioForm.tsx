@@ -6,8 +6,6 @@ import UploadDropzone from "./uploaddropzone";
 import PreviewCard from "./previewcard";
 import { Loader2, Sparkles, Paintbrush, Wand2, Stars } from "lucide-react";
 
-const initialState: ActionState = { ok: false, error: "" } as any;
-
 type Preset = {
     name: string;
     start: string;
@@ -52,33 +50,45 @@ const COPY_PRESETS: Preset[] = [
     },
 ];
 
+const initialState: ActionState = { ok: false, error: "" };
+
 export default function StudioForm() {
     const [state, formAction, isPending] = useActionState(generateCreative, initialState);
     const formRef = useRef<HTMLFormElement>(null);
     const [activeCopy, setActiveCopy] = useState<string>("");
 
     useEffect(() => {
-        if (state && (state as any).ok) {
+        if (state.ok) {
             document.getElementById("preview")?.scrollIntoView({ behavior: "smooth", block: "start" });
         }
-    }, [state]);
+    }, [state.ok]);
 
     function applyColors(start: string, end: string) {
-        if (!formRef.current) return;
-        const s = formRef.current.elements.namedItem("bgStart") as HTMLInputElement | null;
-        const e = formRef.current.elements.namedItem("bgEnd") as HTMLInputElement | null;
+        const form = formRef.current;
+        if (!form) return;
+        const s = form.elements.namedItem("bgStart") as HTMLInputElement | null;
+        const e = form.elements.namedItem("bgEnd") as HTMLInputElement | null;
         if (s) s.value = start;
         if (e) e.value = end;
     }
 
     function applyCopy(preset: Preset) {
-        if (!formRef.current) return;
-        (formRef.current.elements.namedItem("headline") as HTMLInputElement).value = preset.headline;
-        (formRef.current.elements.namedItem("subhead") as HTMLInputElement).value = preset.subhead || "";
-        (formRef.current.elements.namedItem("cta") as HTMLInputElement).value = preset.cta || "";
+        const form = formRef.current;
+        if (!form) return;
+        const headlineEl = form.elements.namedItem("headline") as HTMLInputElement | null;
+        const subheadEl = form.elements.namedItem("subhead") as HTMLInputElement | null;
+        const ctaEl = form.elements.namedItem("cta") as HTMLInputElement | null;
+
+        if (headlineEl) headlineEl.value = preset.headline;
+        if (subheadEl) subheadEl.value = preset.subhead ?? "";
+        if (ctaEl) ctaEl.value = preset.cta ?? "";
+
         applyColors(preset.start, preset.end);
         setActiveCopy(preset.name);
     }
+
+    const previewUrl = state.ok ? state.dataUrl : undefined;
+    const showError = !state.ok && state.error;
 
     return (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -94,11 +104,14 @@ export default function StudioForm() {
                     <label className="text-sm font-semibold text-gray-900">Canvas</label>
                     <div className="mt-2 flex flex-wrap gap-2">
                         {[
-                            { k: "square", label: "1:1 • Post" },
-                            { k: "portrait", label: "4:5 • Feed" },
-                            { k: "story", label: "9:16 • Story/Reel" },
+                            { k: "square", label: "1:1 • Post" as const },
+                            { k: "portrait", label: "4:5 • Feed" as const },
+                            { k: "story", label: "9:16 • Story/Reel" as const },
                         ].map((s) => (
-                            <label key={s.k} className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-gray-800 cursor-pointer hover:bg-gray-100">
+                            <label
+                                key={s.k}
+                                className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-gray-800 cursor-pointer hover:bg-gray-100"
+                            >
                                 <input type="radio" name="size" value={s.k} defaultChecked={s.k === "square"} />
                                 {s.label}
                             </label>
@@ -162,7 +175,7 @@ export default function StudioForm() {
                         <input
                             name="subhead"
                             placeholder="e.g., Light, cushioned, and built for all-day wear"
-                            className="w-full rounded-md border px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-black/20"
+                            className="w-full rounded-md border px-3 py-2 text-gray-9 00 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-black/20"
                         />
                     </div>
 
@@ -173,7 +186,9 @@ export default function StudioForm() {
                             className="w-full rounded-md border px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-black/20"
                             maxLength={28}
                         />
-                        <p className="mt-1 text-xs text-gray-700">Tip: Short CTAs convert better. “Shop Now”, “Upgrade Setup”, “Grab the Deal”.</p>
+                        <p className="mt-1 text-xs text-gray-700">
+                            Tip: Short CTAs convert better. “Shop Now”, “Upgrade Setup”, “Grab the Deal”.
+                        </p>
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -183,8 +198,9 @@ export default function StudioForm() {
                                 key={p.name}
                                 type="button"
                                 onClick={() => applyCopy(p)}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-100 ${activeCopy === p.name ? "bg-gray-200" : ""}`}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-100`}
                                 title={`Apply ${p.name} copy & palette`}
+                                aria-pressed={activeCopy === p.name}
                             >
                                 {p.name}
                             </button>
@@ -200,8 +216,8 @@ export default function StudioForm() {
                 </div>
 
                 {/* Errors */}
-                {state && !state.ok && (state as any).error && (
-                    <div className="rounded-md bg-red-50 text-red-700 text-sm px-3 py-2">{(state as any).error}</div>
+                {showError && (
+                    <div className="rounded-md bg-red-50 text-red-700 text-sm px-3 py-2">{state.error}</div>
                 )}
 
                 {/* Submit */}
@@ -223,10 +239,7 @@ export default function StudioForm() {
 
             {/* Right: Preview */}
             <div id="preview">
-                <PreviewCard
-                    dataUrl={state && (state as any).ok ? (state as any).dataUrl : undefined}
-                    note="Download and post directly to Meta, Instagram, or LinkedIn."
-                />
+                <PreviewCard dataUrl={previewUrl} note="Download and post directly to Meta, Instagram, or LinkedIn." />
             </div>
         </div>
     );
